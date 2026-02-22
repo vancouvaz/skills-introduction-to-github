@@ -1,0 +1,166 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Base resets ─── */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: #0A0A0B;
+    color: #F2F2F4;
+    overflow-x: hidden;
+  }
+
+  /* Focus ring for accessibility */
+  :focus-visible {
+    outline: 2px solid #A8D8EA;
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  /* Smooth scrolling target offset for fixed nav */
+  [id] {
+    scroll-margin-top: 80px;
+  }
+}
+
+/* ─── Component utilities ─── */
+@layer components {
+  /* Section wrapper */
+  .section {
+    @apply py-section px-4 sm:px-6 lg:px-8;
+  }
+
+  .section-sm {
+    @apply py-section-sm px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Max-width container */
+  .container-content {
+    @apply max-w-content mx-auto;
+  }
+
+  /* Gradient text */
+  .gradient-text-ice {
+    @apply bg-gradient-to-r from-ice-bright via-ice to-ice-dim bg-clip-text text-transparent;
+  }
+
+  .gradient-text-warm {
+    @apply bg-gradient-to-r from-amber-chair to-amber-dim bg-clip-text text-transparent;
+  }
+
+  /* Button variants */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2
+           bg-ice text-bg font-semibold
+           px-7 py-3.5 rounded-full
+           text-[0.9375rem] tracking-tight
+           transition-all duration-200
+           hover:bg-ice-bright hover:shadow-[0_0_32px_rgba(168,216,234,0.4)]
+           active:scale-[0.97]
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ice focus-visible:ring-offset-2 focus-visible:ring-offset-bg;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2
+           bg-transparent text-neutral-200 font-medium
+           px-7 py-3.5 rounded-full
+           text-[0.9375rem] tracking-tight
+           border border-bg-border
+           transition-all duration-200
+           hover:border-ice/40 hover:text-ice
+           active:scale-[0.97];
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-1.5
+           text-ice text-sm font-medium
+           transition-colors duration-150
+           hover:text-ice-bright
+           underline-offset-2;
+  }
+
+  /* Card */
+  .card {
+    @apply bg-bg-surface border border-bg-border rounded-2xl p-6 lg:p-8;
+  }
+
+  /* Input */
+  .input {
+    @apply w-full bg-bg-elevated border border-bg-border rounded-xl
+           px-4 py-3.5 text-neutral-100 text-body placeholder:text-neutral-500
+           transition-colors duration-150
+           focus:outline-none focus:border-ice/60 focus:ring-1 focus:ring-ice/30;
+  }
+
+  /* Label */
+  .label {
+    @apply block text-body-sm font-medium text-neutral-300 mb-1.5;
+  }
+
+  /* Section eyebrow label */
+  .eyebrow {
+    @apply text-caption font-semibold tracking-[0.12em] uppercase text-ice;
+  }
+
+  /* Divider */
+  .divider {
+    @apply border-t border-bg-border;
+  }
+}
+
+/* ─── Custom scrollbar (dark theme) ─── */
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #111113;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #252529;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #32323E;
+}
+
+/* ─── Animations ─── */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+/* Stagger fade-up children */
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 80ms; }
+.stagger > *:nth-child(3) { animation-delay: 160ms; }
+.stagger > *:nth-child(4) { animation-delay: 240ms; }
+.stagger > *:nth-child(5) { animation-delay: 320ms; }
+.stagger > *:nth-child(6) { animation-delay: 400ms; }
