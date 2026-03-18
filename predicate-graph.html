@@ -6,195 +6,313 @@
   <title>Predicate — Knowledge Graph</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    body{background:#0d0d0d;overflow:hidden;font-family:'SF Mono',Consolas,monospace}
+    body{background:#0c0c0e;overflow:hidden;font-family:'SF Mono',Consolas,monospace}
     canvas{display:block;cursor:grab}
     canvas:active{cursor:grabbing}
-    #title{
-      position:absolute;top:18px;left:22px;pointer-events:none;
-      color:#fff;font-size:22px;font-weight:700;letter-spacing:3px;line-height:1.3
+    #header{
+      position:absolute;top:18px;left:22px;pointer-events:none;user-select:none
     }
-    #title span{
-      display:block;font-size:11px;font-weight:400;letter-spacing:1px;
-      color:#888;margin-top:2px
-    }
+    #header h1{color:#fff;font-size:20px;font-weight:700;letter-spacing:4px}
+    #header p{color:#555;font-size:10px;letter-spacing:1.5px;margin-top:3px}
     #tooltip{
-      position:absolute;background:rgba(18,18,18,0.96);color:#e0e0e0;
-      padding:7px 13px;border-radius:7px;font-size:12px;pointer-events:none;
-      border:1px solid #333;display:none;max-width:260px;line-height:1.5;
-      box-shadow:0 4px 20px rgba(0,0,0,0.6)
+      position:absolute;background:rgba(14,14,18,0.97);
+      padding:9px 14px;border-radius:8px;font-size:11.5px;
+      pointer-events:none;border:1px solid #2a2a3a;display:none;
+      max-width:280px;line-height:1.6;
+      box-shadow:0 8px 32px rgba(0,0,0,0.7);z-index:99
     }
-    #tooltip b{color:#a0cfff;display:block;margin-bottom:2px}
+    #tooltip .tid{font-weight:700;font-size:13px;margin-bottom:4px}
+    #tooltip .tcat{font-size:9px;letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;opacity:.7}
+    #tooltip .tdesc{color:#bbb;font-size:11px}
     #legend{
-      position:absolute;bottom:20px;left:22px;font-size:11px;line-height:2;
-      pointer-events:none
+      position:absolute;bottom:20px;left:22px;
+      font-size:10.5px;line-height:2.1;user-select:none;pointer-events:none
     }
-    .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:middle}
-    #hint{position:absolute;bottom:20px;right:22px;color:#444;font-size:10px;text-align:right;pointer-events:none;line-height:1.8}
+    .lrow{display:flex;align-items:center;gap:8px}
+    .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+    #controls{
+      position:absolute;bottom:20px;right:22px;
+      color:#333;font-size:10px;text-align:right;line-height:2;pointer-events:none
+    }
+    #nodecount{
+      position:absolute;top:18px;right:22px;
+      color:#333;font-size:10px;text-align:right;line-height:1.8;pointer-events:none
+    }
   </style>
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="title">PREDICATE<span>programmable compliance infrastructure · predicate.io</span></div>
-<div id="tooltip"></div>
+<div id="header">
+  <h1>PREDICATE</h1>
+  <p>programmable compliance infrastructure · predicate.io · formerly Aethos</p>
+</div>
+<div id="tooltip"><div class="tid"></div><div class="tcat"></div><div class="tdesc"></div></div>
 <div id="legend"></div>
-<div id="hint">scroll to zoom<br>drag to pan<br>hover for details</div>
+<div id="controls">scroll to zoom<br>drag to pan<br>hover nodes</div>
+<div id="nodecount"></div>
 
 <script>
-// ─── Colour groups ────────────────────────────────────────────────────────────
-const GROUPS = {
-  core:       { color:'#5bb8ff', label:'core platform' },
-  product:    { color:'#4ecb71', label:'products' },
-  compliance: { color:'#a78bfa', label:'compliance layer' },
-  partner:    { color:'#fb923c', label:'customers & partners' },
-  engineering:{ color:'#f472b6', label:'engineering' },
-  ops:        { color:'#9ca3af', label:'operations & legal' },
-  team:       { color:'#fbbf24', label:'team & investors' },
+// ═══════════════════════════════════════════════════════════════
+//  GROUPS
+// ═══════════════════════════════════════════════════════════════
+const G = {
+  core:       {color:'#60a5fa', label:'core platform'},
+  product:    {color:'#4ade80', label:'products'},
+  compliance: {color:'#a78bfa', label:'compliance layer'},
+  partner:    {color:'#fb923c', label:'confirmed partners'},
+  operator:   {color:'#f97316', label:'network operators'},
+  engineering:{color:'#f472b6', label:'engineering'},
+  investor:   {color:'#fbbf24', label:'investors'},
+  team:       {color:'#fde68a', label:'team'},
+  ops:        {color:'#94a3b8', label:'ops & legal'},
+  usecase:    {color:'#67e8f9', label:'use cases & markets'},
 };
 
-// ─── Nodes ────────────────────────────────────────────────────────────────────
-const nodes = [
-  // ── Core ──
-  { id:'Predicate',             g:'core',        desc:'Programmable compliance infrastructure for onchain financial products. Policy-enforcement at the smart contract level.' },
+// ═══════════════════════════════════════════════════════════════
+//  NODES  (id, g=group, desc)
+// ═══════════════════════════════════════════════════════════════
+const NODES = [
+  // ── CORE ──────────────────────────────────────────────────────
+  {id:'Predicate',          g:'core',
+   desc:'Programmable compliance & policy infrastructure for onchain financial products. Formerly Aethos. Founded Oct 2023, incorporated in Wilmington, Delaware. $7M seed Oct 2024.'},
 
-  // ── Products ──
-  { id:'Asset-Compliance',      g:'product',     desc:'Blacklisting sanctioned addresses from using tokens. Targeted at token issuers, stablecoin projects, and RWA platforms.' },
-  { id:'Application-Compliance',g:'product',     desc:'Smart-contract policy enforcement for dApps: AML checks, rate limits, geofencing, collateral thresholds.' },
-  { id:'Predicate-Identity',    g:'product',     desc:'KYC/KYB identity layer. Integrates multiple identity providers (SumSub, etc.) across chains without redeployments.' },
-  { id:'Policy-Engine',         g:'product',     desc:'Declarative policy authoring via the Predicate Dashboard. Policies update dynamically without onchain redeployments.' },
-  { id:'Predicate-Authority',   g:'product',     desc:'Pre-execution authority layer binding AI agent identity to deterministic state. Issues/revokes "work permits" to agents.' },
+  // ── PRODUCTS ──────────────────────────────────────────────────
+  {id:'Policy-Engine',      g:'product',
+   desc:'Declarative, programmable rules determining tx approval/denial. Configured via Dashboard — no onchain redeployment needed. Rules compose like "legos" into full policies.'},
+  {id:'Asset-Compliance',   g:'product',
+   desc:'For token issuers & stablecoin projects: dynamic blacklists, sanctions screening, transfer rules. Embed compliance directly into token contracts.'},
+  {id:'Application-Compliance',g:'product',
+   desc:'For dApps & DeFi: AML checks, geofencing, rate limits, collateral thresholds enforced at the smart-contract level. Prevents replay via UUID tracking.'},
+  {id:'Predicate-Identity', g:'product',
+   desc:'KYC/KYB identity layer. Integrates multiple identity providers across chains. Policies portable without per-chain redeployment.'},
+  {id:'Predicate-Authority',g:'product',
+   desc:'Pre-execution authority layer binding AI agent identity to deterministic state. Issues/revokes "work permits" based on intent & state. Supports Entra ID, Okta, OIDC.'},
+  {id:'Bridge-Compliance',  g:'product',
+   desc:'Cross-chain bridge policy enforcement. O(1) verification, sub-second latency. First deployed on Aleo via Verulink — cut attestation delay 24h → 15min (99% improvement).'},
+  {id:'Offchain-API',        g:'product',
+   desc:'REST API: send tx data, receive a cryptographic attestation certifying policy compliance. Combines statement + signature bound to an authorized attester.'},
+  {id:'Dashboard',          g:'product',
+   desc:'Web UI for authoring, deploying, and monitoring compliance policies. No-code policy configuration. Manages attester keys and monitors operator network.'},
 
-  // ── Compliance layer ──
-  { id:'OFAC-Screening',        g:'compliance',  desc:'Real-time dynamic blacklist of OFAC sanctioned addresses. Operators build and maintain the list via EigenLayer AVS.' },
-  { id:'AML-Gateway',           g:'compliance',  desc:'Automated anti-money laundering & CFT checks using TRM Labs risk scores integrated at the smart-contract level.' },
-  { id:'KYC / KYB',             g:'compliance',  desc:'Seamless identity verification. Supports multiple providers; policies portable across EVM chains.' },
-  { id:'Sanctions',             g:'compliance',  desc:'Configurable sanctions rules enforceable per jurisdiction, DAO, or corporate governance structure.' },
-  { id:'Geofencing',            g:'compliance',  desc:'Jurisdictional restrictions — e.g. blocking US users from certain yield products for securities-law compliance.' },
-  { id:'Rate-Limiting',         g:'compliance',  desc:'Configurable transaction volume & frequency controls per address, protocol, or time window.' },
-  { id:'Collateral-Requirements',g:'compliance', desc:'Dynamic collateral validation for DeFi lending protocols — integrates offchain data into onchain rules.' },
-  { id:'Attestations',          g:'compliance',  desc:'Cryptographic signatures issued by Predicate operators certifying a transaction meets policy. Replay-protected via UUID.' },
+  // ── COMPLIANCE LAYER ──────────────────────────────────────────
+  {id:'OFAC-Screening',     g:'compliance',
+   desc:'Real-time dynamic blacklist of OFAC sanctioned addresses. Operators continuously update via distributed network. Used by Plume, Paxos, Aleo bridge.'},
+  {id:'AML-Gateway',        g:'compliance',
+   desc:'Automated AML/CFT checks using TRM Labs, Elliptic, and Crystal risk scoring integrated at the smart-contract level in real time.'},
+  {id:'KYC / KYB',          g:'compliance',
+   desc:'Identity & business verification. Integrates multiple providers (SumSub, etc.) — policies portable across EVM chains without manual re-integration.'},
+  {id:'Sanctions',          g:'compliance',
+   desc:'Configurable sanctions rules per jurisdiction, DAO, or corporate governance. Supports OFAC, EU, UN sanctions lists via partner data providers.'},
+  {id:'Geofencing',         g:'compliance',
+   desc:'Jurisdictional restrictions — e.g. blocking US users from certain yield products for securities-law compliance (Reg D, Reg S).'},
+  {id:'Rate-Limiting',      g:'compliance',
+   desc:'Configurable tx volume & frequency controls per address, protocol, or time window. Used by DeFi lending and bridge protocols.'},
+  {id:'Collateral-Requirements',g:'compliance',
+   desc:'Dynamic collateral validation for DeFi lending protocols. Integrates offchain data into onchain rules — collateral thresholds, LTV checks.'},
+  {id:'Attestations',       g:'compliance',
+   desc:'Cryptographic signatures certifying a tx meets policy. Combines statement + attester signature. Replay-protected via UUID. Required before tx executes.'},
+  {id:'Operators',          g:'compliance',
+   desc:'Distributed operator network (EigenLayer PoS) that builds blacklists and issues policy attestations. Slashing conditions enforce economic accountability.'},
+  {id:'Blacklists',         g:'compliance',
+   desc:'Dynamic blacklists built from OFAC, graph-based analysis of sanctioned address counterparties. Updated in real-time by the operator network.'},
+  {id:'ARC-100',            g:'compliance',
+   desc:'Aleo bridge security standard. Predicate implemented ARC-100 compliance for Verulink, enabling ZK-privacy + regulated compliance simultaneously.'},
 
-  // ── Infrastructure / Tech ──
-  { id:'EigenLayer',            g:'partner',     desc:'Predicate runs as an AVS (Actively Validated Service) on EigenLayer. >$7B TVL shared security powers the operator network.' },
-  { id:'Operators',             g:'compliance',  desc:'Distributed operator network (powered by EigenLayer PoS) that builds blacklists and issues policy attestations.' },
+  // ── CONFIRMED PARTNERS ────────────────────────────────────────
+  {id:'EigenLayer',         g:'partner',
+   desc:'Predicate runs as an AVS (Actively Validated Service). ~$6.24B TVL, ~2.42M ETH restaked, 56 operators. Provides cryptoeconomic security for the operator network.'},
+  {id:'TRM-Labs',           g:'partner',
+   desc:'Strategic partner. Provides blockchain intelligence & risk scoring for AML/sanctions enforcement. Co-launched "first decentralized policy infrastructure."'},
+  {id:'Plume',              g:'partner',
+   desc:'RWA-focused blockchain. Predicate enforces OFAC sanctions on inbound bridge assets — dynamic blacklist, no UX change, no mandatory KYC required.'},
+  {id:'Paxos',              g:'partner',
+   desc:'`predicate-paxos` repo (USDL Uniswap V4 hooks). AML/CFTC compliance + geolocation rules for Paxos stablecoin swaps. Circle & Paxos deploying USDCx/USAD on Aleo.'},
+  {id:'Aleo',               g:'partner',
+   desc:'ZK-privacy blockchain. First compliant bridge framework via Predicate. ARC-100 standard. Enables privacy-preserving stablecoins (USDCx, USAD) with Predicate compliance.'},
+  {id:'Verulink',           g:'partner',
+   desc:'Aleo–Ethereum bridge. Reduced attestation delay from 24h to 15min (99% improvement) using Predicate. First production deployment of Bridge-Compliance product.'},
+  {id:'Celo',               g:'partner',
+   desc:'Blockchain network (where both founders previously worked). Building & enforcing policies via Predicate. ConsenSys Ventures (Celo ecosystem) is investor.'},
+  {id:'NEAR',               g:'partner',
+   desc:'L1 blockchain. Building & enforcing policies via Predicate. NEAR Foundation is an investor in the $7M seed round.'},
+  {id:'Alchemy',            g:'partner',
+   desc:'Rollup developer platform. Predicate listed in Alchemy integration marketplace — distribution channel to rollup developers for AML requirements on token bridges.'},
+  {id:'Elliptic',           g:'partner',
+   desc:'Blockchain analytics firm. Listed as ecosystem partner. Risk-scoring data available as Predicate policy inputs alongside TRM Labs.'},
+  {id:'CUBE3.AI',           g:'partner',
+   desc:'Fraud prevention partner. Integration brings real-time fraud detection into Predicate\'s pre-transaction verification infrastructure (announced Apr 2025).'},
+  {id:'Uniswap',            g:'partner',
+   desc:'Via Paxos integration (`predicate-uniswap-cca`). AML/CFTC compliance and geolocation rules for Uniswap V4 hooks. Compliance support for token teams using Uniswap CCA.'},
+  {id:'ConsenSys',          g:'partner',
+   desc:'ConsenSys Ventures is an investor. MetaMask/Ethereum ecosystem alignment. Part of the broader EVM-native institutional DeFi stack.'},
+  {id:'Caldera',            g:'partner',
+   desc:'Rollup infrastructure partner. Listed as ecosystem partner on predicate.io. Distribution channel for Predicate compliance on Caldera-powered chains.'},
+  {id:'LayerZero',          g:'partner',
+   desc:'Cross-chain interoperability. Paxos uses LayerZero OFT standard for USDG0. Part of the broader Plume/Paxos regulated stablecoin ecosystem that uses Predicate.'},
+  {id:'Amina-Bank',         g:'partner',
+   desc:'Swiss FINMA-regulated crypto bank. Part of Paxos Global Dollar Network. AMINA Bank Web3 partnership program connects startups including compliance-focused projects.'},
+  {id:'Circle',             g:'partner',
+   desc:'Stablecoin issuer. Circle (USDCx) planning to deploy privacy-preserving stablecoin on Aleo using Predicate compliance infrastructure alongside Paxos.'},
 
-  // ── Partners & Customers ──
-  { id:'TRM-Labs',              g:'partner',     desc:'Strategic partner. Provides industry-leading blockchain intelligence & risk scoring integrated into Predicate policies.' },
-  { id:'Plume',                 g:'partner',     desc:'RWA-focused chain. Uses Predicate for bridge compliance — OFAC blacklist enforcement without altering UX or requiring KYC.' },
-  { id:'Paxos',                 g:'partner',     desc:'Stablecoin issuer (USDG). Active predicate-paxos GitHub repo indicates deep technical compliance integration.' },
-  { id:'LayerZero',             g:'partner',     desc:'Cross-chain interoperability. Paxos USDG0 uses LayerZero OFT standard; part of the regulated stablecoin ecosystem.' },
-  { id:'Amina-Bank',            g:'partner',     desc:'Swiss FINMA-regulated crypto bank. Integrates Paxos USDG. Part of the institutional compliance ecosystem.' },
-  { id:'CipherOwl',             g:'partner',     desc:'On-chain data & compliance provider. Integrated into Predicate\'s partner ecosystem for address risk data.' },
-  { id:'MerkleScience',         g:'partner',     desc:'Blockchain analytics firm providing risk-scoring data usable as Predicate policy inputs.' },
-  { id:'SumsubKYB',             g:'partner',     desc:'Identity verification provider (KYC/KYB) integrated via Predicate-Identity for compliant onboarding.' },
-  { id:'Verulink',              g:'partner',     desc:'Cross-chain bridge on Aleo. Reduced attestation delay from 24h to 15min using Predicate policy infrastructure.' },
-  { id:'Consensys',             g:'partner',     desc:'Ethereum ecosystem builder. Ecosystem overlap via EVM-native deployment and institutional DeFi focus.' },
-  { id:'Solana',                g:'partner',     desc:'Target chain expansion. Predicate plans to extend beyond EVM to Solana and other L1s.' },
-  { id:'Stellar',               g:'partner',     desc:'Payment-focused blockchain. Potential partner in the regulated asset tokenization space.' },
-  { id:'Paxos',                 g:'partner',     desc:'Token issuer with compliance needs. Uses Predicate for regulated stablecoin policy enforcement.' },
-  { id:'Token-Issuers',         g:'partner',     desc:'Primary customer segment: stablecoin and RWA token issuers needing blacklist and transfer-rule enforcement.' },
-  { id:'Stablecoins',           g:'partner',     desc:'Key use case: USDG, regulated stablecoins requiring jurisdictional and sanctions compliance at the smart-contract level.' },
-  { id:'RWA',                   g:'partner',     desc:'Real-World Assets onchain. Core market: tokenised securities, funds, and treasuries needing institutional compliance.' },
-  { id:'DeFi',                  g:'partner',     desc:'DeFi protocols (vaults, LPs, restaking) use Predicate to block stolen/sanctioned assets from entering liquidity.' },
-  { id:'AI-Agents',             g:'partner',     desc:'Emerging segment: Predicate-Authority governs AI agent transactions — guardrails, fraud prevention, intent validation.' },
+  // ── OPERATORS ─────────────────────────────────────────────────
+  {id:'Figment',            g:'operator',
+   desc:'Institutional staking provider. Trusted operator in the Predicate network. Also Figment Capital is an investor in the $7M seed round.'},
+  {id:'Nethermind',         g:'operator',
+   desc:'Ethereum client & infrastructure firm. Trusted operator in the Predicate network. Issues compliance attestations for transactions.'},
+  {id:'Pier Two',           g:'operator',
+   desc:'Ethereum infrastructure & staking. Trusted operator. EigenLayer launch partner. Issues signatures for Predicate policy compliance.'},
+  {id:'Everstake',          g:'operator',
+   desc:'Staking provider. Both an operator (servicing Predicate on mainnet) AND an investor in the $7M seed round. Dual role in the ecosystem.'},
 
-  // ── Team & Investors ──
-  { id:'Nikhil Raghuveera',     g:'team',        desc:'Co-Founder & CEO. Ex-Celo Foundation (Head of Strategy & Innovation), Atlantic Council Senior Fellow, Harvard Kennedy MPA.' },
-  { id:'Jesse Sawa',            g:'team',        desc:'Co-Founder & CTO. Former JP Morgan software engineer. Leads engineering and technical architecture.' },
-  { id:'Michael Mosier',        g:'team',        desc:'Advisor. Former Acting Director of US Treasury\'s FinCEN. Deep regulatory credibility for institutional adoption.' },
-  { id:'Khushi Wadhwa',         g:'team',        desc:'Research & Strategy. Part of Predicate\'s 6-person founding team.' },
-  { id:'1kx',                   g:'team',        desc:'Lead investor. Web3-native VC firm. Part of the $7M seed round announced October 2024.' },
-  { id:'Tribe Capital',         g:'team',        desc:'Co-lead investor. $7M seed round. Growth-stage VC with fintech and crypto portfolio.' },
+  // ── TEAM ──────────────────────────────────────────────────────
+  {id:'Nikhil Raghuveera',  g:'team',
+   desc:'Co-Founder & CEO. Ex-Celo Foundation (Head of Strategy & Innovation), Atlantic Council Senior Fellow, BCG consultant. Wharton MBA, Harvard Kennedy MPA, Emory BA. @pumpernikhil'},
+  {id:'Jesse Sawa',         g:'team',
+   desc:'Co-Founder & CTO. Ex-JP Morgan (built first JPMorgan AI-powered Software Testing Platform), ex-cLabs (Celo core developer). Leads all engineering.'},
+  {id:'Michael Mosier',     g:'team',
+   desc:'Advisor. Former Acting Director of US Treasury\'s FinCEN. Co-founder Arktouros PLLC. Former in-house counsel at Chainalysis and Espresso Systems.'},
+  {id:'Khushi Wadhwa',      g:'team',
+   desc:'Research & Strategy. Part of Predicate\'s 6-person founding team. Contributes to policy research, market analysis, and go-to-market strategy.'},
 
-  // ── Engineering ──
-  { id:'Rust',                  g:'engineering', desc:'Backend systems language used in Predicate operator and core infrastructure components.' },
-  { id:'Solidity',              g:'engineering', desc:'Smart contract language. PredicateRegistry.sol and PredicateClient.sol enforce policies onchain.' },
-  { id:'Backend',               g:'engineering', desc:'Off-chain operator services, policy API, and attestation generation infrastructure.' },
-  { id:'Frontend',              g:'engineering', desc:'Predicate Dashboard — web UI for authoring, deploying, and monitoring compliance policies.' },
-  { id:'DevOps',                g:'engineering', desc:'Deployment and infrastructure automation for the distributed operator network.' },
-  { id:'Smart-Contracts',       g:'engineering', desc:'PredicateRegistry.sol (attester mgmt, UUID replay protection) + PredicateClient.sol (WHO + WHAT validation).' },
+  // ── INVESTORS ─────────────────────────────────────────────────
+  {id:'1kx',                g:'investor',
+   desc:'Lead investor, $7M seed round (Oct 2024). Web3-native VC. Known for early bets on foundational crypto infrastructure.'},
+  {id:'Tribe Capital',      g:'investor',
+   desc:'Co-lead investor, $7M seed round. Growth-stage VC with fintech and crypto portfolio. Co-led alongside 1kx.'},
+  {id:'Dept of XYZ',        g:'investor',
+   desc:'Pre-seed investor (Nov 2023). New York VC founded 2023. First institutional backer. Published "Why we invested in Predicate."'},
+  {id:'Figment Capital',    g:'investor',
+   desc:'Seed investor. VC arm of Figment (Predicate network operator). Double exposure as both operator and investor.'},
+  {id:'HashKey Capital',    g:'investor',
+   desc:'Seed investor. Asia-focused crypto asset manager and VC. $7M seed round participant.'},
+  {id:'GSR',                g:'investor',
+   desc:'Seed investor. Crypto market maker and trading firm. $7M seed round participant.'},
+  {id:'Cyber Fund',         g:'investor',
+   desc:'Seed investor. Published "Predicate: Transaction Prerequisites for App Expressivity" investment thesis post.'},
+  {id:'NEAR Foundation',    g:'investor',
+   desc:'Seed investor. Protocol foundation (NEAR blockchain). Predicate is also building policy enforcement for NEAR.'},
+  {id:'Everstake Capital',  g:'investor',
+   desc:'Seed investor (Everstake VC arm). Also an active operator in the Predicate network. Dual investor + operator role.'},
 
-  // ── Ops & Legal ──
-  { id:'Vision',                g:'ops',         desc:'Bring regulated markets fully onchain. Compliance as a plug-and-play layer, not a bottleneck to innovation.' },
-  { id:'Roadmap',               g:'ops',         desc:'Phase 1: EVM chains. Phase 2: Expand to Solana and non-EVM L1s. Phase 3: AI-agent policy enforcement.' },
-  { id:'GTM',                   g:'ops',         desc:'Go-to-market: white-glove integration with new clients. Revenue model: per-transaction fee charged to protocols.' },
-  { id:'Pricing',               g:'ops',         desc:'Transaction-fee model. Predicate charges a fee per screened transaction, creating recurring protocol-level revenue.' },
-  { id:'Docs',                  g:'ops',         desc:'docs.predicate.io — V2 documentation covering essentials, SDK, smart contract integration, and policy authoring.' },
-  { id:'ADGM',                  g:'ops',         desc:'Abu Dhabi Global Market. Regulatory sandbox jurisdiction relevant to Predicate\'s expansion into MENA markets.' },
-  { id:'Delaware',              g:'ops',         desc:'US incorporation jurisdiction. Standard for US-based blockchain startups seeking VC funding.' },
-  { id:'FinCEN',                g:'ops',         desc:'US Treasury\'s Financial Crimes Enforcement Network. Michael Mosier (advisor) former Acting Director.' },
-  { id:'Security-Audit',        g:'ops',         desc:'Smart contract audits and security review of PredicateRegistry and PredicateClient contracts.' },
-  { id:'BD',                    g:'ops',         desc:'Business development: institutional outreach to banks, DeFi protocols, stablecoin issuers, and RWA platforms.' },
+  // ── ENGINEERING ───────────────────────────────────────────────
+  {id:'Solidity',           g:'engineering',
+   desc:'Primary smart contract language. PredicateRegistry.sol (attester mgmt, UUID replay protection) + PredicateClient.sol (WHO + WHAT validation). npm: @predicate/contracts'},
+  {id:'Rust',               g:'engineering',
+   desc:'Used in Predicate operator binaries and core infrastructure. `predicate-operator` repo contains the Rust-based operator binary.'},
+  {id:'TypeScript',         g:'engineering',
+   desc:'`sol-contracts` — Predicate smart contracts for Solana. Multi-chain strategy includes TypeScript-based Solana integration.'},
+  {id:'Go',                 g:'engineering',
+   desc:'`go-ethereum` fork. Used in Predicate\'s Ethereum-compatible operator infrastructure and node tooling.'},
+  {id:'Foundry',            g:'engineering',
+   desc:'EVM smart contract development toolchain (Cast, Anvil, Chisel). Used for testing and deploying predicate-contracts.'},
+  {id:'Smart-Contracts',    g:'engineering',
+   desc:'predicate-contracts (Solidity/EVM), sol-contracts (TypeScript/Solana), predicate-paxos (Uniswap V4 hooks), predicate-uniswap-cca, predicate-examples.'},
+  {id:'Backend',            g:'engineering',
+   desc:'Off-chain operator services, policy API, attestation generation infrastructure. Rust + Go. Handles real-time policy evaluation requests.'},
+  {id:'DevOps',             g:'engineering',
+   desc:'Deployment and infrastructure automation for the distributed operator network. CI/CD, operator monitoring, mainnet uptime management.'},
+
+  // ── OPS & LEGAL ───────────────────────────────────────────────
+  {id:'Aethos',             g:'ops',
+   desc:'Former brand name. Rebranded to Predicate. Original positioning: "A generalizable policy engine built for smart contracts." Blog still at aethos.mirror.xyz.'},
+  {id:'Delaware',           g:'ops',
+   desc:'Incorporated in Wilmington, Delaware. Standard US incorporation for VC-backed blockchain startups seeking institutional investment.'},
+  {id:'ADGM',               g:'ops',
+   desc:'Abu Dhabi Global Market. Regulatory sandbox relevant to Predicate\'s MENA market expansion and institutional client onboarding in the Gulf region.'},
+  {id:'FinCEN',             g:'ops',
+   desc:'US Treasury\'s Financial Crimes Enforcement Network. Michael Mosier (advisor) former Acting Director. Deep regulatory credibility for Predicate\'s compliance claims.'},
+  {id:'Vision',             g:'ops',
+   desc:'"Bring regulated markets fully onchain." Compliance as neutral, decentralized infrastructure owned by communities — not a bottleneck to innovation.'},
+  {id:'Roadmap',            g:'ops',
+   desc:'Phase 1: EVM chains (live). Phase 2: Solana & non-EVM L1s (sol-contracts exists). Phase 3: AI-agent policy enforcement (Predicate-Authority). Intent systems next.'},
+  {id:'GTM',                g:'ops',
+   desc:'Go-to-market: white-glove integration with new clients. Revenue model: per-transaction fee. Distribution via Alchemy marketplace, EigenLayer AVS ecosystem, direct sales.'},
+  {id:'Pricing',            g:'ops',
+   desc:'Per-transaction fee model charged to protocols. Creates recurring, usage-based revenue proportional to network activity.'},
+  {id:'Docs',               g:'ops',
+   desc:'docs.predicate.io/v2 — V2 documentation: essentials, SDK, smart contract integration, policy authoring guide, operator onboarding.'},
+  {id:'Security-Audit',     g:'ops',
+   desc:'Smart contract security review of PredicateRegistry.sol and PredicateClient.sol. Critical for institutional adoption.'},
+  {id:'BD',                 g:'ops',
+   desc:'Business development: institutional outreach to banks, DeFi protocols, stablecoin issuers, RWA platforms, rollup builders, and AI agent developers.'},
+
+  // ── USE CASES & MARKETS ───────────────────────────────────────
+  {id:'RWA',                g:'usecase',
+   desc:'Real-World Assets onchain. Core market: tokenised securities, funds, treasuries needing institutional compliance. Key partner: Plume (RWA chain).'},
+  {id:'DeFi',               g:'usecase',
+   desc:'DeFi protocols (vaults, LPs, restaking) use Predicate to block stolen/sanctioned assets. Application-Compliance product targets this segment.'},
+  {id:'AI-Agents',          g:'usecase',
+   desc:'Emerging segment. Predicate-Authority governs AI agent transactions — fraud guardrails, intent validation, "work permit" issuance/revocation.'},
+  {id:'Stablecoins',        g:'usecase',
+   desc:'USDG (Paxos), USDL, USDCx (Circle on Aleo), USAD. Regulated stablecoins requiring jurisdictional and sanctions compliance at smart-contract level.'},
+  {id:'Token-Issuers',      g:'usecase',
+   desc:'Primary customer segment. Stablecoin & RWA token issuers needing blacklist, transfer-rule, and jurisdictional enforcement embedded in contracts.'},
+  {id:'Privacy-Chains',     g:'usecase',
+   desc:'ZK-privacy chains (Aleo) using Predicate to add compliance without breaking privacy. Enables regulated products on privacy-preserving infrastructure.'},
 ];
 
-// Deduplicate Paxos (accidentally added twice)
-const seen = new Set();
-const dedupedNodes = nodes.filter(n => {
-  if (seen.has(n.id)) return false;
-  seen.add(n.id);
-  return true;
-});
-
-// ─── Edges ────────────────────────────────────────────────────────────────────
-const edges = [
+// ═══════════════════════════════════════════════════════════════
+//  EDGES  [source, target]  — confirmed relationships only
+// ═══════════════════════════════════════════════════════════════
+const EDGES = [
   // Core → Products
+  ['Predicate','Policy-Engine'],
   ['Predicate','Asset-Compliance'],
   ['Predicate','Application-Compliance'],
   ['Predicate','Predicate-Identity'],
-  ['Predicate','Policy-Engine'],
   ['Predicate','Predicate-Authority'],
+  ['Predicate','Bridge-Compliance'],
+  ['Predicate','Offchain-API'],
+  ['Predicate','Dashboard'],
 
   // Core → Compliance
-  ['Predicate','OFAC-Screening'],
-  ['Predicate','AML-Gateway'],
-  ['Predicate','KYC / KYB'],
-  ['Predicate','Sanctions'],
   ['Predicate','EigenLayer'],
   ['Predicate','Operators'],
   ['Predicate','Attestations'],
+  ['Predicate','OFAC-Screening'],
+  ['Predicate','AML-Gateway'],
 
   // Core → Partners
   ['Predicate','TRM-Labs'],
   ['Predicate','Plume'],
   ['Predicate','Paxos'],
-  ['Predicate','LayerZero'],
-  ['Predicate','Amina-Bank'],
-  ['Predicate','CipherOwl'],
-  ['Predicate','MerkleScience'],
-  ['Predicate','SumsubKYB'],
+  ['Predicate','Aleo'],
   ['Predicate','Verulink'],
-  ['Predicate','Consensys'],
-  ['Predicate','Solana'],
-  ['Predicate','Stellar'],
-  ['Predicate','Token-Issuers'],
-  ['Predicate','RWA'],
-  ['Predicate','DeFi'],
-  ['Predicate','AI-Agents'],
-  ['Predicate','Stablecoins'],
+  ['Predicate','Celo'],
+  ['Predicate','NEAR'],
+  ['Predicate','Alchemy'],
+  ['Predicate','Elliptic'],
+  ['Predicate','CUBE3.AI'],
+  ['Predicate','Uniswap'],
 
   // Core → Team
   ['Predicate','Nikhil Raghuveera'],
   ['Predicate','Jesse Sawa'],
+  ['Predicate','Michael Mosier'],
+  ['Predicate','Khushi Wadhwa'],
+
+  // Core → Investors
   ['Predicate','1kx'],
   ['Predicate','Tribe Capital'],
+  ['Predicate','Dept of XYZ'],
 
   // Core → Ops
+  ['Predicate','Aethos'],
+  ['Predicate','Delaware'],
   ['Predicate','Vision'],
   ['Predicate','Roadmap'],
   ['Predicate','GTM'],
-  ['Predicate','Pricing'],
   ['Predicate','Docs'],
-  ['Predicate','Security-Audit'],
-  ['Predicate','BD'],
 
-  // Core → Eng
-  ['Predicate','Rust'],
-  ['Predicate','Solidity'],
-  ['Predicate','Backend'],
-  ['Predicate','Frontend'],
-  ['Predicate','DevOps'],
-  ['Predicate','Smart-Contracts'],
+  // Core → Use cases
+  ['Predicate','RWA'],
+  ['Predicate','DeFi'],
+  ['Predicate','AI-Agents'],
+  ['Predicate','Stablecoins'],
+  ['Predicate','Token-Issuers'],
+  ['Predicate','Privacy-Chains'],
 
-  // Product ↔ Compliance cross-links
+  // Product ↔ Compliance
   ['Policy-Engine','OFAC-Screening'],
   ['Policy-Engine','AML-Gateway'],
   ['Policy-Engine','Sanctions'],
@@ -202,258 +320,305 @@ const edges = [
   ['Policy-Engine','Rate-Limiting'],
   ['Policy-Engine','Collateral-Requirements'],
   ['Policy-Engine','Attestations'],
-  ['Policy-Engine','Operators'],
+  ['Policy-Engine','Blacklists'],
+  ['Policy-Engine','KYC / KYB'],
+  ['Policy-Engine','Dashboard'],
   ['Asset-Compliance','OFAC-Screening'],
   ['Asset-Compliance','Sanctions'],
+  ['Asset-Compliance','Blacklists'],
   ['Asset-Compliance','Token-Issuers'],
   ['Application-Compliance','AML-Gateway'],
   ['Application-Compliance','Rate-Limiting'],
   ['Application-Compliance','Geofencing'],
+  ['Application-Compliance','Collateral-Requirements'],
   ['Application-Compliance','DeFi'],
   ['Predicate-Identity','KYC / KYB'],
-  ['Predicate-Identity','SumsubKYB'],
   ['Predicate-Authority','AI-Agents'],
   ['Predicate-Authority','Smart-Contracts'],
+  ['Bridge-Compliance','ARC-100'],
+  ['Bridge-Compliance','OFAC-Screening'],
+  ['Bridge-Compliance','Attestations'],
+  ['Offchain-API','Attestations'],
+  ['Offchain-API','Backend'],
+  ['Dashboard','Policy-Engine'],
 
-  // EigenLayer ↔ Operators
+  // EigenLayer network
   ['EigenLayer','Operators'],
   ['Operators','Attestations'],
+  ['Operators','Figment'],
+  ['Operators','Nethermind'],
+  ['Operators','Pier Two'],
+  ['Operators','Everstake'],
 
-  // Partner cross-links
+  // Partner integrations
   ['TRM-Labs','AML-Gateway'],
-  ['Plume','RWA'],
+  ['TRM-Labs','OFAC-Screening'],
+  ['Plume','Asset-Compliance'],
   ['Plume','OFAC-Screening'],
+  ['Plume','RWA'],
+  ['Paxos','Asset-Compliance'],
+  ['Paxos','Uniswap'],
   ['Paxos','Stablecoins'],
+  ['Paxos','Aleo'],
+  ['Aleo','Bridge-Compliance'],
+  ['Aleo','ARC-100'],
+  ['Aleo','Privacy-Chains'],
+  ['Aleo','Circle'],
+  ['Verulink','Bridge-Compliance'],
+  ['Verulink','Aleo'],
+  ['Celo','Policy-Engine'],
+  ['NEAR','Policy-Engine'],
+  ['Alchemy','Application-Compliance'],
+  ['Elliptic','AML-Gateway'],
+  ['CUBE3.AI','Application-Compliance'],
+  ['Uniswap','Application-Compliance'],
+  ['ConsenSys','EigenLayer'],
   ['Paxos','LayerZero'],
   ['Amina-Bank','Paxos'],
   ['Amina-Bank','LayerZero'],
-  ['MerkleScience','AML-Gateway'],
-  ['CipherOwl','OFAC-Screening'],
-  ['Verulink','Attestations'],
+  ['Caldera','Application-Compliance'],
+  ['Circle','Stablecoins'],
+  ['Circle','Aleo'],
 
-  // Team links
+  // Team cross-links
   ['Nikhil Raghuveera','Vision'],
   ['Jesse Sawa','Smart-Contracts'],
   ['Jesse Sawa','Backend'],
   ['Michael Mosier','FinCEN'],
   ['Michael Mosier','Sanctions'],
+
+  // Investor links
   ['1kx','Tribe Capital'],
+  ['Figment','Figment Capital'],
+  ['Everstake','Everstake Capital'],
+  ['Figment Capital','1kx'],
+  ['ConsenSys','1kx'],
 
   // Ops cross-links
-  ['ADGM','Vision'],
+  ['Aethos','Policy-Engine'],
   ['Delaware','Vision'],
   ['FinCEN','OFAC-Screening'],
+  ['FinCEN','Sanctions'],
   ['Security-Audit','Smart-Contracts'],
   ['GTM','BD'],
-  ['Pricing','GTM'],
+  ['GTM','Pricing'],
   ['Docs','Policy-Engine'],
-  ['Roadmap','Solana'],
   ['Roadmap','AI-Agents'],
+  ['Roadmap','NEAR'],
+  ['ADGM','Vision'],
 
-  // Eng cross-links
+  // Engineering
   ['Rust','Backend'],
   ['Rust','Operators'],
   ['Solidity','Smart-Contracts'],
-  ['Frontend','Policy-Engine'],
+  ['TypeScript','Smart-Contracts'],
+  ['Go','Backend'],
+  ['Foundry','Solidity'],
+  ['Smart-Contracts','Application-Compliance'],
   ['DevOps','Backend'],
 
-  // Extra compliance nodes (not connected to core yet)
-  ['Predicate','Geofencing'],
-  ['Predicate','Rate-Limiting'],
-  ['Predicate','Collateral-Requirements'],
-  ['Predicate','Michael Mosier'],
-  ['Predicate','Khushi Wadhwa'],
-  ['Predicate','ADGM'],
-  ['Predicate','Delaware'],
-  ['Predicate','FinCEN'],
+  // Use case links
+  ['RWA','Token-Issuers'],
+  ['Stablecoins','Token-Issuers'],
+  ['Stablecoins','Asset-Compliance'],
+  ['Privacy-Chains','Bridge-Compliance'],
+
+  // Additional investor connections to show
+  ['HashKey Capital','Predicate'],
+  ['GSR','Predicate'],
+  ['Cyber Fund','Predicate'],
+  ['NEAR Foundation','Predicate'],
+  ['Everstake Capital','Predicate'],
+  ['Figment Capital','Predicate'],
 ];
 
-// ─── Canvas setup ─────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+//  CANVAS SETUP
+// ═══════════════════════════════════════════════════════════════
 const canvas = document.getElementById('c');
 const ctx    = canvas.getContext('2d');
-const tip    = document.getElementById('tooltip');
 let W, H;
 function resize(){ W = canvas.width = innerWidth; H = canvas.height = innerHeight; }
 resize();
-addEventListener('resize', resize);
+addEventListener('resize', () => { resize(); });
 
-// Build legend
+// Legend
 const leg = document.getElementById('legend');
-leg.innerHTML = Object.entries(GROUPS).map(([k,v])=>
-  `<div><span class="dot" style="background:${v.color}"></span><span style="color:${v.color}">${v.label}</span></div>`
+leg.innerHTML = Object.entries(G).map(([k,v])=>
+  `<div class="lrow"><div class="dot" style="background:${v.color}"></div><span style="color:${v.color};opacity:.85">${v.label}</span></div>`
 ).join('');
 
-// ─── Node map & degree ────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+//  GRAPH INTERNALS
+// ═══════════════════════════════════════════════════════════════
 const nodeMap = {};
-dedupedNodes.forEach(n => { nodeMap[n.id] = n; });
-const degree = {};
-dedupedNodes.forEach(n => (degree[n.id] = 0));
-edges.forEach(([a,b]) => {
-  if (nodeMap[a] && nodeMap[b]) { degree[a]++; degree[b]++; }
-});
+NODES.forEach(n => { nodeMap[n.id] = n; });
 
-// ─── Initial positions (seeded spiral) ───────────────────────────────────────
-dedupedNodes.forEach((n, i) => {
+const degree = {};
+NODES.forEach(n => { degree[n.id] = 0; });
+const validEdges = EDGES.filter(([a,b]) => nodeMap[a] && nodeMap[b]);
+validEdges.forEach(([a,b]) => { degree[a]++; degree[b]++; });
+
+document.getElementById('nodecount').textContent =
+  `${NODES.length} nodes · ${validEdges.length} edges`;
+
+// Seed positions
+NODES.forEach((n, i) => {
   if (n.id === 'Predicate') { n.x = W/2; n.y = H/2; }
   else {
-    const angle = (i / dedupedNodes.length) * Math.PI * 2 + i * 0.3;
-    const r     = 160 + (i % 5) * 60 + Math.random() * 60;
-    n.x = W/2 + Math.cos(angle) * r;
-    n.y = H/2 + Math.sin(angle) * r;
+    const angle = (i / NODES.length) * Math.PI * 2 + i * 0.618;
+    const band  = [160,250,340,420][i % 4];
+    n.x = W/2 + Math.cos(angle) * (band + Math.random()*50);
+    n.y = H/2 + Math.sin(angle) * (band + Math.random()*50);
   }
   n.vx = 0; n.vy = 0;
 });
 
-// ─── Force simulation ─────────────────────────────────────────────────────────
-const SPRING_K   = 0.014;
-const REPEL      = 5500;
-const DAMPING    = 0.80;
-const TARGET_LEN = 130;
+// ─── Force simulation ──────────────────────────────────────────
+const CFG = {spring:0.013, repel:5800, damp:0.80, rest:125, gravity:0.0016};
 
 function simulate(){
-  // Repulsion
-  for (let i = 0; i < dedupedNodes.length; i++){
-    for (let j = i+1; j < dedupedNodes.length; j++){
-      const a = dedupedNodes[i], b = dedupedNodes[j];
-      const dx = a.x-b.x, dy = a.y-b.y;
-      const d2 = dx*dx + dy*dy + 0.01;
-      const f  = REPEL / d2;
-      const fx = f*dx, fy = f*dy;
-      a.vx+=fx; a.vy+=fy; b.vx-=fx; b.vy-=fy;
+  for (let i = 0; i < NODES.length; i++){
+    for (let j = i+1; j < NODES.length; j++){
+      const a=NODES[i], b=NODES[j];
+      const dx=a.x-b.x, dy=a.y-b.y;
+      const d2=dx*dx+dy*dy+0.01;
+      const f=CFG.repel/d2;
+      a.vx+=f*dx; a.vy+=f*dy; b.vx-=f*dx; b.vy-=f*dy;
     }
   }
-  // Springs
-  edges.forEach(([idA,idB]) => {
-    const a = nodeMap[idA], b = nodeMap[idB];
-    if (!a || !b) return;
-    const dx = b.x-a.x, dy = b.y-a.y;
-    const d  = Math.sqrt(dx*dx+dy*dy) || 1;
-    const f  = (d - TARGET_LEN) * SPRING_K;
-    const fx = (dx/d)*f, fy = (dy/d)*f;
+  validEdges.forEach(([ia,ib])=>{
+    const a=nodeMap[ia], b=nodeMap[ib];
+    const dx=b.x-a.x, dy=b.y-a.y;
+    const d=Math.sqrt(dx*dx+dy*dy)||1;
+    const f=(d-CFG.rest)*CFG.spring;
+    const fx=(dx/d)*f, fy=(dy/d)*f;
     a.vx+=fx; a.vy+=fy; b.vx-=fx; b.vy-=fy;
   });
-  // Gravity toward center
-  dedupedNodes.forEach(n => {
-    n.vx += (W/2 - n.x) * 0.0018;
-    n.vy += (H/2 - n.y) * 0.0018;
-    n.vx *= DAMPING; n.vy *= DAMPING;
-    n.x  += n.vx;    n.y  += n.vy;
+  NODES.forEach(n=>{
+    n.vx+=(W/2-n.x)*CFG.gravity;
+    n.vy+=(H/2-n.y)*CFG.gravity;
+    n.vx*=CFG.damp; n.vy*=CFG.damp;
+    n.x+=n.vx; n.y+=n.vy;
   });
 }
 
-// ─── Pan / zoom ───────────────────────────────────────────────────────────────
-let pan = {x:0, y:0}, scale = 1;
-let drag = false, last = null;
+// ─── Pan / zoom ────────────────────────────────────────────────
+let pan={x:0,y:0}, scale=1, drag=false, last=null, hovered=null;
 
-canvas.addEventListener('wheel', e => {
+canvas.addEventListener('wheel',e=>{
   e.preventDefault();
-  const f = e.deltaY < 0 ? 1.12 : 0.89;
-  scale = Math.min(5, Math.max(0.15, scale * f));
-}, {passive:false});
+  scale=Math.min(6,Math.max(0.12,scale*(e.deltaY<0?1.12:0.89)));
+},{passive:false});
 
-canvas.addEventListener('mousedown', e => { drag=true; last={x:e.clientX,y:e.clientY}; });
-addEventListener('mouseup',   () => { drag=false; });
-canvas.addEventListener('mousemove', e => {
-  if (drag && last){
-    pan.x += e.clientX-last.x;
-    pan.y += e.clientY-last.y;
-    last = {x:e.clientX,y:e.clientY};
-  }
-  // Tooltip hit test
-  const mx = (e.clientX - pan.x - W/2)/scale + W/2;
-  const my = (e.clientY - pan.y - H/2)/scale + H/2;
-  let hit = null;
-  dedupedNodes.forEach(n => {
-    const dx=n.x-mx, dy=n.y-my;
-    if (Math.sqrt(dx*dx+dy*dy) < radius(n)+6) hit=n;
+canvas.addEventListener('mousedown',e=>{drag=true;last={x:e.clientX,y:e.clientY};});
+addEventListener('mouseup',()=>{drag=false;});
+canvas.addEventListener('mousemove',e=>{
+  if(drag&&last){pan.x+=e.clientX-last.x;pan.y+=e.clientY-last.y;last={x:e.clientX,y:e.clientY};}
+  const mx=(e.clientX-pan.x-W/2)/scale+W/2;
+  const my=(e.clientY-pan.y-H/2)/scale+H/2;
+  hovered=null;
+  NODES.forEach(n=>{
+    if(Math.hypot(n.x-mx,n.y-my)<rad(n)+5) hovered=n;
   });
-  if (hit){
+  const tip=document.getElementById('tooltip');
+  if(hovered){
+    const col=G[hovered.g]?.color||'#aaa';
     tip.style.display='block';
-    tip.style.left=(e.clientX+16)+'px';
-    tip.style.top =(e.clientY-12)+'px';
-    tip.innerHTML=`<b>${hit.id}</b>${hit.desc}`;
+    tip.style.left=(e.clientX+18)+'px';
+    tip.style.top=(e.clientY-14)+'px';
+    tip.querySelector('.tid').style.color=col;
+    tip.querySelector('.tid').textContent=hovered.id;
+    tip.querySelector('.tcat').style.color=col;
+    tip.querySelector('.tcat').textContent=G[hovered.g]?.label||hovered.g;
+    tip.querySelector('.tdesc').textContent=hovered.desc;
   } else { tip.style.display='none'; }
 });
 
-// Touch
-canvas.addEventListener('touchstart', e=>{drag=true;last={x:e.touches[0].clientX,y:e.touches[0].clientY};});
+canvas.addEventListener('touchstart',e=>{drag=true;last={x:e.touches[0].clientX,y:e.touches[0].clientY};},{passive:true});
 addEventListener('touchend',()=>{drag=false;});
-canvas.addEventListener('touchmove', e=>{
+canvas.addEventListener('touchmove',e=>{
   if(!drag||!last)return;
-  pan.x+=e.touches[0].clientX-last.x;
-  pan.y+=e.touches[0].clientY-last.y;
+  pan.x+=e.touches[0].clientX-last.x;pan.y+=e.touches[0].clientY-last.y;
   last={x:e.touches[0].clientX,y:e.touches[0].clientY};
-});
+},{passive:true});
 
-// ─── Node radius ──────────────────────────────────────────────────────────────
-function radius(n){
-  if (n.id==='Predicate') return 18;
-  return 5 + Math.min(degree[n.id]||0, 12) * 1.5;
+// ─── Node radius ───────────────────────────────────────────────
+function rad(n){
+  if(n.id==='Predicate') return 20;
+  return 4.5 + Math.min(degree[n.id]||0, 14) * 1.4;
 }
 
-// ─── Draw ─────────────────────────────────────────────────────────────────────
-let tick = 0;
-const SIMULATE_TICKS = 400;
+// ─── Highlight connected nodes ─────────────────────────────────
+function connectedTo(id){
+  const s=new Set([id]);
+  validEdges.forEach(([a,b])=>{if(a===id)s.add(b);if(b===id)s.add(a);});
+  return s;
+}
 
+// ─── Draw ──────────────────────────────────────────────────────
+let tick=0;
 function draw(){
   requestAnimationFrame(draw);
-  if (tick < SIMULATE_TICKS){ simulate(); tick++; }
+  if(tick<500){simulate();tick++;}
 
   ctx.clearRect(0,0,W,H);
   ctx.save();
-  ctx.translate(pan.x + W/2, pan.y + H/2);
-  ctx.scale(scale, scale);
-  ctx.translate(-W/2, -H/2);
+  ctx.translate(pan.x+W/2,pan.y+H/2);
+  ctx.scale(scale,scale);
+  ctx.translate(-W/2,-H/2);
+
+  const conn = hovered ? connectedTo(hovered.id) : null;
 
   // Edges
-  edges.forEach(([idA,idB]) => {
-    const a=nodeMap[idA], b=nodeMap[idB];
-    if(!a||!b)return;
+  validEdges.forEach(([ia,ib])=>{
+    const a=nodeMap[ia],b=nodeMap[ib];
+    const isHighlit = conn && (conn.has(ia)||conn.has(ib));
+    const isCore    = ia==='Predicate'||ib==='Predicate';
     ctx.beginPath();
     ctx.moveTo(a.x,a.y);
     ctx.lineTo(b.x,b.y);
-    const isMajor = idA==='Predicate'||idB==='Predicate';
-    ctx.strokeStyle = isMajor ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)';
-    ctx.lineWidth = isMajor ? 1.2 : 0.7;
+    if(conn){
+      ctx.strokeStyle = isHighlit ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.02)';
+      ctx.lineWidth   = isHighlit ? 1.4 : 0.5;
+    } else {
+      ctx.strokeStyle = isCore ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.035)';
+      ctx.lineWidth   = isCore ? 1.1 : 0.6;
+    }
     ctx.stroke();
   });
 
   // Nodes
-  dedupedNodes.forEach(n => {
-    const r   = radius(n);
-    const col = GROUPS[n.g]?.color || '#888';
+  NODES.forEach(n=>{
+    const r   = rad(n);
+    const col = G[n.g]?.color||'#888';
     const isCore = n.id==='Predicate';
+    const dim    = conn && !conn.has(n.id);
 
     // Glow
-    if (isCore){
-      const grd = ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,r*3.5);
-      grd.addColorStop(0,'rgba(91,184,255,0.25)');
-      grd.addColorStop(1,'rgba(91,184,255,0)');
-      ctx.beginPath();
-      ctx.arc(n.x,n.y,r*3.5,0,Math.PI*2);
-      ctx.fillStyle=grd;
-      ctx.fill();
-    } else if (degree[n.id] >= 6){
-      const grd = ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,r*2.5);
-      grd.addColorStop(0,col.replace(')',',0.15)').replace('rgb','rgba'));
-      grd.addColorStop(1,'rgba(0,0,0,0)');
-      ctx.beginPath();
-      ctx.arc(n.x,n.y,r*2.5,0,Math.PI*2);
-      ctx.fillStyle=grd;
-      ctx.fill();
+    if(isCore){
+      const grd=ctx.createRadialGradient(n.x,n.y,0,n.x,n.y,r*4);
+      grd.addColorStop(0,'rgba(96,165,250,0.3)');
+      grd.addColorStop(1,'rgba(96,165,250,0)');
+      ctx.beginPath();ctx.arc(n.x,n.y,r*4,0,Math.PI*2);
+      ctx.fillStyle=grd;ctx.fill();
+    } else if(!dim && degree[n.id]>=5){
+      const hex=col;
+      ctx.beginPath();ctx.arc(n.x,n.y,r*2.2,0,Math.PI*2);
+      ctx.fillStyle=hex+'22';ctx.fill();
     }
 
-    ctx.beginPath();
-    ctx.arc(n.x,n.y,r,0,Math.PI*2);
-    ctx.fillStyle=col;
+    // Circle
+    ctx.beginPath();ctx.arc(n.x,n.y,r,0,Math.PI*2);
+    ctx.fillStyle = dim ? col+'44' : col;
     ctx.fill();
 
     // Label
-    const fontSize = isCore ? 13 : Math.max(9, 10);
-    ctx.font      = isCore ? `bold ${fontSize}px sans-serif` : `${fontSize}px sans-serif`;
+    const fs = isCore ? 12 : 9.5;
+    ctx.font      = isCore ? `bold ${fs}px sans-serif` : `${fs}px sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillStyle = isCore ? '#ffffff' : '#cccccc';
-    ctx.fillText(n.id, n.x, n.y - r - 4);
+    ctx.fillStyle = dim ? 'rgba(255,255,255,0.15)' : (isCore?'#fff':'rgba(220,220,220,0.88)');
+    ctx.fillText(n.id, n.x, n.y-r-4);
   });
 
   ctx.restore();
