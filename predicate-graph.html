@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Predicate Knowledge Graph</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a1a; overflow: hidden; font-family: sans-serif; }
+    canvas { display: block; }
+    #tooltip {
+      position: absolute;
+      background: rgba(30,30,30,0.92);
+      color: #d4f5a0;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      pointer-events: none;
+      border: 1px solid #4a7c2f;
+      display: none;
+    }
+    #legend {
+      position: absolute;
+      bottom: 18px;
+      left: 18px;
+      color: #888;
+      font-size: 11px;
+      line-height: 1.8;
+    }
+    #legend span { color: #b8e066; }
+  </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="tooltip"></div>
+<div id="legend">
+  <span>Predicate Knowledge Graph</span><br>
+  Scroll to zoom &bull; Drag to pan &bull; Hover nodes
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const tooltip = document.getElementById('tooltip');
+
+// ── Graph data ────────────────────────────────────────────────────────────────
+const nodes = [
+  // Core
+  { id: 'Predicate',          group: 'core',     desc: 'A function that returns true or false' },
+
+  // Concept cluster
+  { id: 'Boolean',            group: 'concept',  desc: 'The return type of every predicate' },
+  { id: 'Pure Function',      group: 'concept',  desc: 'Predicates are ideally side-effect-free' },
+  { id: 'Higher-Order Fn',    group: 'concept',  desc: 'Predicates passed as arguments' },
+  { id: 'Closure',            group: 'concept',  desc: 'Capturing context inside a predicate' },
+  { id: 'Truthy / Falsy',     group: 'concept',  desc: 'JS coercion to boolean in predicates' },
+
+  // Composition
+  { id: 'Composition',        group: 'compose',  desc: 'Building complex predicates from simple ones' },
+  { id: 'AND Predicate',      group: 'compose',  desc: 'p1(x) && p2(x) — both must be true' },
+  { id: 'OR Predicate',       group: 'compose',  desc: 'p1(x) || p2(x) — either must be true' },
+  { id: 'NOT Predicate',      group: 'compose',  desc: '!p(x) — negation of a predicate' },
+  { id: 'Currying',           group: 'compose',  desc: 'Turn multi-arg functions into predicates' },
+
+  // Usage
+  { id: 'Array.filter',       group: 'usage',    desc: 'arr.filter(pred) — keep matching items' },
+  { id: 'Array.find',         group: 'usage',    desc: 'arr.find(pred) — first matching item' },
+  { id: 'Array.some',         group: 'usage',    desc: 'arr.some(pred) — any match?' },
+  { id: 'Array.every',        group: 'usage',    desc: 'arr.every(pred) — all match?' },
+  { id: 'Validation',         group: 'usage',    desc: 'Form / schema validation logic' },
+  { id: 'Search / Query',     group: 'usage',    desc: 'Filtering records in a data set' },
+  { id: 'Guard Clause',       group: 'usage',    desc: 'Early return via a boolean check' },
+
+  // Patterns
+  { id: 'Specification',      group: 'pattern',  desc: 'Pattern: encapsulate rules as objects' },
+  { id: 'Strategy',           group: 'pattern',  desc: 'Swap predicate logic at runtime' },
+  { id: 'Type Guard',         group: 'pattern',  desc: 'TypeScript: value is T predicate' },
+  { id: 'Assertion',          group: 'pattern',  desc: 'assert(pred(x)) — defensive checks' },
+
+  // Languages
+  { id: 'JavaScript',         group: 'lang',     desc: 'x => x > 0 — arrow function predicate' },
+  { id: 'TypeScript',         group: 'lang',     desc: '(x: number): x is Pos => x > 0' },
+  { id: 'Haskell',            group: 'lang',     desc: 'Predicates are first-class, typed Bool' },
+  { id: 'SQL WHERE',          group: 'lang',     desc: 'WHERE clause as a relational predicate' },
+  { id: 'Prolog',             group: 'lang',     desc: 'Logic programming built on predicates' },
+];
+
+const edges = [
+  // Core → concepts
+  ['Predicate', 'Boolean'],
+  ['Predicate', 'Pure Function'],
+  ['Predicate', 'Higher-Order Fn'],
+  ['Predicate', 'Truthy / Falsy'],
+  ['Higher-Order Fn', 'Closure'],
+
+  // Core → composition
+  ['Predicate', 'Composition'],
+  ['Composition', 'AND Predicate'],
+  ['Composition', 'OR Predicate'],
+  ['Composition', 'NOT Predicate'],
+  ['Composition', 'Currying'],
+
+  // Core → usage
+  ['Predicate', 'Array.filter'],
+  ['Predicate', 'Array.find'],
+  ['Predicate', 'Array.some'],
+  ['Predicate', 'Array.every'],
+  ['Predicate', 'Validation'],
+  ['Predicate', 'Search / Query'],
+  ['Predicate', 'Guard Clause'],
+
+  // Core → patterns
+  ['Predicate', 'Specification'],
+  ['Predicate', 'Strategy'],
+  ['Predicate', 'Type Guard'],
+  ['Predicate', 'Assertion'],
+
+  // Core → languages
+  ['Predicate', 'JavaScript'],
+  ['Predicate', 'TypeScript'],
+  ['Predicate', 'Haskell'],
+  ['Predicate', 'SQL WHERE'],
+  ['Predicate', 'Prolog'],
+
+  // Cross-links
+  ['TypeScript', 'Type Guard'],
+  ['JavaScript', 'Array.filter'],
+  ['JavaScript', 'Array.find'],
+  ['JavaScript', 'Array.some'],
+  ['JavaScript', 'Array.every'],
+  ['JavaScript', 'Truthy / Falsy'],
+  ['Specification', 'Composition'],
+  ['Currying', 'Higher-Order Fn'],
+  ['Validation', 'Specification'],
+  ['Search / Query', 'Array.filter'],
+  ['Guard Clause', 'Assertion'],
+  ['Haskell', 'Pure Function'],
+  ['Prolog', 'Boolean'],
+];
+
+// ── Colour palette ────────────────────────────────────────────────────────────
+const groupColor = {
+  core:    '#c8f04a',
+  concept: '#a0d060',
+  compose: '#7abf3c',
+  usage:   '#5fa830',
+  pattern: '#8fd44a',
+  lang:    '#b0e040',
+};
+
+// ── Layout ────────────────────────────────────────────────────────────────────
+let W, H;
+function resize() {
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', () => { resize(); });
+
+// Place nodes in a force-directed layout
+nodes.forEach((n, i) => {
+  const angle = (i / nodes.length) * Math.PI * 2;
+  const r = n.group === 'core' ? 0 : 200 + Math.random() * 120;
+  n.x  = W / 2 + Math.cos(angle) * r;
+  n.y  = H / 2 + Math.sin(angle) * r;
+  n.vx = 0;
+  n.vy = 0;
+});
+
+// Build adjacency for degree
+const degree = {};
+nodes.forEach(n => (degree[n.id] = 0));
+edges.forEach(([a, b]) => { degree[a]++; degree[b]++; });
+
+// ── Force simulation ──────────────────────────────────────────────────────────
+const nodeMap = {};
+nodes.forEach(n => (nodeMap[n.id] = n));
+
+function simulate() {
+  const k = 0.012, rep = 4000, damp = 0.82;
+  nodes.forEach(a => {
+    nodes.forEach(b => {
+      if (a === b) return;
+      const dx = a.x - b.x, dy = a.y - b.y;
+      const d2 = dx * dx + dy * dy + 1;
+      const f = rep / d2;
+      a.vx += f * dx; a.vy += f * dy;
+    });
+    // attract to center softly
+    a.vx += (W / 2 - a.x) * 0.002;
+    a.vy += (H / 2 - a.y) * 0.002;
+  });
+  edges.forEach(([idA, idB]) => {
+    const a = nodeMap[idA], b = nodeMap[idB];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const d = Math.sqrt(dx * dx + dy * dy) || 1;
+    const f = (d - 120) * k;
+    const fx = (dx / d) * f, fy = (dy / d) * f;
+    a.vx += fx; a.vy += fy;
+    b.vx -= fx; b.vy -= fy;
+  });
+  nodes.forEach(n => {
+    n.vx *= damp; n.vy *= damp;
+    n.x  += n.vx; n.y  += n.vy;
+  });
+}
+
+// ── Pan / zoom ────────────────────────────────────────────────────────────────
+let pan = { x: 0, y: 0 }, scale = 1;
+let dragging = false, lastMouse = null;
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const factor = e.deltaY < 0 ? 1.1 : 0.91;
+  scale = Math.min(4, Math.max(0.2, scale * factor));
+}, { passive: false });
+
+canvas.addEventListener('mousedown', e => { dragging = true; lastMouse = { x: e.clientX, y: e.clientY }; });
+canvas.addEventListener('mouseup',   () => { dragging = false; });
+canvas.addEventListener('mousemove', e => {
+  if (dragging && lastMouse) {
+    pan.x += e.clientX - lastMouse.x;
+    pan.y += e.clientY - lastMouse.y;
+    lastMouse = { x: e.clientX, y: e.clientY };
+  }
+  // tooltip
+  const mx = (e.clientX - pan.x - W/2) / scale + W/2;
+  const my = (e.clientY - pan.y - H/2) / scale + H/2;
+  let hit = null;
+  nodes.forEach(n => {
+    const dx = n.x - mx, dy = n.y - my;
+    if (Math.sqrt(dx*dx+dy*dy) < nodeRadius(n) + 4) hit = n;
+  });
+  if (hit) {
+    tooltip.style.display = 'block';
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top  = (e.clientY - 10) + 'px';
+    tooltip.textContent = `${hit.id}: ${hit.desc}`;
+  } else {
+    tooltip.style.display = 'none';
+  }
+});
+
+// Touch support
+canvas.addEventListener('touchstart', e => {
+  dragging = true;
+  lastMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+});
+canvas.addEventListener('touchend', () => { dragging = false; });
+canvas.addEventListener('touchmove', e => {
+  if (!dragging || !lastMouse) return;
+  pan.x += e.touches[0].clientX - lastMouse.x;
+  pan.y += e.touches[0].clientY - lastMouse.y;
+  lastMouse = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+});
+
+function nodeRadius(n) {
+  return n.group === 'core' ? 14 : 5 + degree[n.id] * 1.8;
+}
+
+// ── Draw ──────────────────────────────────────────────────────────────────────
+let tick = 0;
+function draw() {
+  requestAnimationFrame(draw);
+  if (tick < 300) { simulate(); tick++; }
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  ctx.translate(pan.x + W/2, pan.y + H/2);
+  ctx.scale(scale, scale);
+  ctx.translate(-W/2, -H/2);
+
+  // edges
+  edges.forEach(([idA, idB]) => {
+    const a = nodeMap[idA], b = nodeMap[idB];
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.strokeStyle = 'rgba(160,210,80,0.18)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  });
+
+  // nodes
+  nodes.forEach(n => {
+    const r = nodeRadius(n);
+    const col = groupColor[n.group] || '#b0e060';
+
+    // glow for core
+    if (n.group === 'core') {
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, r + 8, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(200,240,74,0.12)';
+      ctx.fill();
+    }
+
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = col;
+    ctx.fill();
+
+    // label
+    ctx.fillStyle = '#d8f0a0';
+    ctx.font = n.group === 'core'
+      ? `bold ${13/scale < 9 ? 9*scale : 13}px sans-serif`
+      : `${10/scale < 7 ? 7*scale : 10}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(n.id, n.x, n.y - r - 4);
+  });
+
+  ctx.restore();
+}
+
+draw();
+</script>
+</body>
+</html>
